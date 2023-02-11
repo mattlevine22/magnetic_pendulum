@@ -43,12 +43,13 @@ def my_regressor(X, y, alpha=1e-5, positive=False):
 
 class MagneticPendulum:
     """"""
-    def __init__(_s, omega=0.5, alpha=0.2, h=0.2):
+    def __init__(_s, omega=0.5, alpha=0.2, h=0.2, do_normalization=True):
         _s.omega2 = omega**2
         _s.alpha = alpha
         _s.h = h
         _s.loc = np.array([[1/np.sqrt(3), 0], [-1/ (2*np.sqrt(3)), -0.5], [-1/ (2*np.sqrt(3)), 0.5]])
         _s.n_loc = _s.loc.shape[0]
+        _s.do_normalization = do_normalization
 
     def get_ic(_s, box_size=2.0):
         return np.random.uniform(low=-box_size, high=box_size, size=(2*_s.loc.shape[1]))
@@ -101,32 +102,63 @@ class MagneticPendulum:
     def rhs_approx(_s, u, t=0):
         if u.ndim==1:
             u = u.reshape(1,-1)
-        F = _s.compute_feature_maps(u)
-        udot = _s.clf.predict(F)
+        F = _s.compute_feature_maps(_s.scaleX(u))
+        udot = _s.descaleY(_s.clf.predict(F))
         return udot
 
     def make_random_features(_s, n_input_dim, n_features):
         '''n_input_dim [scalar]: This is the dimension of the input space.
            n_features [scalar]: This is the number of random features to generate.
         '''
-        # Generate random tanh features
+        # Generate random weights and biases for features
         _s.A = np.random.randn(n_features, n_input_dim)
         _s.b = np.random.uniform(low=0, high=2*np.pi, size=n_features)
 
     def compute_feature_maps(_s, u_input):
-        return np.tanh(_s.fac_A * (_s.A @ u_input.T).T + _s.b)
+        return np.cos(_s.fac_A * (_s.A @ u_input.T).T + _s.b)
 
     def train_random_features(_s, n_features, u_input, u_output, alpha=1e-4, fac_A=1):
         n_input_dim = u_input.shape[1]
         _s.make_random_features(n_input_dim, n_features)
         _s.fac_A = fac_A
 
-        F = _s.compute_feature_maps(u_input)
+        F = _s.compute_feature_maps(_s.scaleX(u_input, save=True))
         print('F.shape:', F.shape)
 
-        _s.clf, y_pred, residuals, _s.train_mse, _s.train_r2 = my_regressor(F, u_output, alpha=alpha)
+        _s.clf, y_pred, residuals, _s.train_mse, _s.train_r2 = my_regressor(F, _s.scaleY(u_output, save=True), alpha=alpha)
         _s.coef_mean = np.mean(_s.clf.coef_)
         _s.coef_std = np.std(_s.clf.coef_)
 
         print('mean of coeffs:', _s.coef_mean)
         print('sd of coeffs:', _s.coef_std)
+
+    ## define normalizer tools
+    def scaleX(_s, x, save=False):
+        if _s.do_normalization:
+            if save:
+                _s.x_mean = np.mean(x)
+                _s.x_std = np.std(x)
+            return (x-_s.x_mean) / _s.x_std
+        else:
+            return x
+
+    def descaleX(_s, x):
+        if _s.do_normalization:
+            return _s.x_mean + (_s.x_std * x)
+        else:
+            return x
+
+    def scaleY(_s, y, save=False):
+        if _s.do_normalization:
+            if save:
+                _s.y_mean = np.mean(y)
+                _s.y_std = np.std(y)
+            return (y-_s.y_mean) / _s.y_std
+        else:
+            return y
+
+    def descaleY(_s, y):
+        if _s.do_normalization:
+            return _s.y_mean + (_s.y_std * y)
+        else:
+            return y

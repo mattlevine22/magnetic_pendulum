@@ -16,8 +16,8 @@ parser.add_argument("--training_box_size", default=1, type=float)
 parser.add_argument("--testing_box_size", default=0.5, type=float)
 parser.add_argument("--n_per_axis", default=20, type=int)
 parser.add_argument("--n_random_features", default=100, type=int)
-parser.add_argument("--fac_A", default=4, type=float) # 4 seemed good in range [0.1 to 5]
-parser.add_argument("--alpha", default=1e-3, type=float)
+parser.add_argument("--fac_A", default=2, type=float) # 4 seemed good in range [0.1 to 5]
+parser.add_argument("--alpha", default=1e-5, type=float)
 parser.add_argument("--n_test_ics", default=5, type=int)
 FLAGS = parser.parse_args()
 
